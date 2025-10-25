@@ -36,6 +36,201 @@
                 "${workspaceFolder}/AZ2003.csproj"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "type": "docker-build",
+            "label": "docker-build: debug",
+            "dependsOn": [
+                "build"
+            ],
+            "dockerBuild": {
+                "tag": "az2003:dev",
+                "target": "base",
+                "dockerfile": "${workspaceFolder}/Dockerfile",
+                "context": "${workspaceFolder}",
+                "pull": true
+            },
+            "netCore": {
+                "appProject": "${workspaceFolder}/AZ2003.csproj"
+            }
+        },
+        {
+            "type": "docker-build",
+            "label": "docker-build: release",
+            "dependsOn": [
+                "build"
+            ],
+            "dockerBuild": {
+                "tag": "az2003:latest",
+                "dockerfile": "${workspaceFolder}/Dockerfile",
+                "context": "${workspaceFolder}",
+                "platform": {
+                    "os": "linux",
+                    "architecture": "amd64"
+                },
+                "pull": true
+            },
+            "netCore": {
+                "appProject": "${workspaceFolder}/AZ2003.csproj"
+            }
+        },
+        {
+            "type": "docker-run",
+            "label": "docker-run: debug",
+            "dependsOn": [
+                "docker-build: debug"
+            ],
+            "dockerRun": {},
+            "netCore": {
+                "appProject": "${workspaceFolder}/AZ2003.csproj",
+                "enableDebugging": true
+            }
+        },
+        {
+            "type": "docker-run",
+            "label": "docker-run: release",
+            "dependsOn": [
+                "docker-build: release"
+            ],
+            "dockerRun": {},
+            "netCore": {
+                "appProject": "${workspaceFolder}/AZ2003.csproj"
+            }
+        },
+        {
+            "label": "docker-push: debug",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "push",
+                "az2003:dev"
+            ],
+            "group": "build",
+            "dependsOn": [
+                "docker-build: debug"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "docker-push: release",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "push",
+                "az2003:latest"
+            ],
+            "group": "build",
+            "dependsOn": [
+                "docker-build: release"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "docker-tag-and-push",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "tag",
+                "az2003:latest",
+                "${input:dockerRegistry}/${input:dockerRepository}:${input:dockerTag}"
+            ],
+            "group": "build",
+            "dependsOn": [
+                "docker-build: release"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "docker-push-to-registry",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "push",
+                "${input:dockerRegistry}/${input:dockerRepository}:${input:dockerTag}"
+            ],
+            "group": "build",
+            "dependsOn": [
+                "docker-tag-and-push"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "azure-acr-login",
+            "type": "shell",
+            "command": "az",
+            "args": [
+                "acr",
+                "login",
+                "--name",
+                "acraz2003avn25oct"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "docker-build-for-acr",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "build",
+                "-t",
+                "aspnetcorecontainer:latest",
+                "-t",
+                "acraz2003avn25oct.azurecr.io/aspnetcorecontainer:latest",
+                "-f",
+                "${workspaceFolder}/Dockerfile",
+                "${workspaceFolder}"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "docker-push-to-acr",
+            "type": "shell",
+            "command": "docker",
+            "args": [
+                "push",
+                "acraz2003avn25oct.azurecr.io/aspnetcorecontainer:latest"
+            ],
+            "group": "build",
+            "dependsOn": [
+                "azure-acr-login",
+                "docker-build-for-acr"
+            ],
+            "dependsOrder": "sequence",
+            "problemMatcher": []
+        },
+        {
+            "label": "docker-build-tag-push-acr",
+            "dependsOn": [
+                "docker-push-to-acr"
+            ],
+            "dependsOrder": "sequence",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "dockerRegistry",
+            "description": "Docker registry (e.g., docker.io, mcr.microsoft.com, your-registry.azurecr.io)",
+            "default": "docker.io",
+            "type": "promptString"
+        },
+        {
+            "id": "dockerRepository",
+            "description": "Docker repository name (e.g., username/az2003)",
+            "default": "yourusername/az2003",
+            "type": "promptString"
+        },
+        {
+            "id": "dockerTag",
+            "description": "Docker image tag",
+            "default": "latest",
+            "type": "promptString"
         }
     ]
 }
